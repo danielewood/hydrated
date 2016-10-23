@@ -1,3 +1,9 @@
-This script is designed for debian based distros.
-It will automatically download and install all the needed components to generate Let's Encrypt Certificates and interface with the GoDaddy DNS API.
+Hydrated was originally written to solve a problem, Lync/Skype4B Edge requires a costly SAN certificate.
+
+Hydrated generates said certificate using Let's Encrypt with DNS Hooks in a format that can then be imported to Lync.
+
+It is designed for debian based distros. It will automatically download and install all the needed components to generate Let's Encrypt Certificates and interface with the GoDaddy DNS API.
+
 All you need to do is edit the .conf and put in your settings. You can pass any other config file as an argument. This makes for easy use of cron for generating multiple certificates using different conf files.
+
+A Powershell script will be added later, as well as a writeup, to allow automatic importation of certificates into Windows IIS and Lync servers.
