@@ -1,0 +1,3 @@
+This script is designed for debian based distros.
+It will automatically download and install all the needed components to generate Let's Encrypt Certificates and interface with the GoDaddy DNS API.
+All you need to do is edit the .conf and put in your settings. You can pass any other config file as an argument. This makes for easy use of cron for generating multiple certificates using different conf files.
