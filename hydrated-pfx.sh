@@ -73,10 +73,11 @@ $SCRIPT_DIR/dehydrated/dehydrated --challenge $DEHYDRATED_CHALLENGE -k $SCRIPT_D
 #$SCRIPT_DIR/dehydrated/dehydrated --challenge dns-01 -k $SCRIPT_DIR/le-godaddy-dns/godaddy.py -c --domain "$CERT_CommonName $CERT_CommonName $CERT_SANS"
 echo -e $COLOR_OFF
 
-#Check if fullchain.pem is less than 2 minutes old so we don't create a new PFX if the PEM was not updated
-if [ $(find "$SCRIPT_DIR/dehydrated/certs/$CERT_CommonName" -mmin -2 -name "fullchain.pem") ]
+#Check if fullchain.pem.MD5 matches current md5sum of fullchain.pem so we don't create a new PFX if the PEM was not updated
+if [ $(md5sum $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem | awk '{print $1}') != $(cat $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem.MD5) ]
   then
-    #echo 'fullchain.pem < 2 minutes old'
+    md5sum $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem | awk '{print $1}' > $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem.MD5
+    echo -e "\e[1;32m$CERT_CommonName/fullchain.pem\e[0m updated, writing new PFX file..."
     openssl pkcs12 -export -out $CERT_PFX_PATH/$CERT_FileName.pfx -inkey $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/privkey.pem -in $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem -name $CERT_FriendlyName -password pass:$CERT_Password
     md5sum $CERT_PFX_PATH/$CERT_FileName.pfx | awk '{print $1}' > $CERT_PFX_PATH/$CERT_FileName.MD5
     echo -e "Exported Windows-compatible PFX certificate to \e[1;32m$CERT_PFX_PATH/$CERT_FileName.pfx\e[0m"
@@ -93,8 +94,6 @@ if [ $(find "$SCRIPT_DIR/dehydrated/certs/$CERT_CommonName" -mmin -2 -name "full
   else
     echo -e "\e[1;31mWARNING:\e[0m" "$CERT_CommonName/fullchain.pem was not updated, skipping writing new $CERT_FileName.pfx"
 fi
-
-
 
 if [[ "$CERT_TEXT" == *"Fake LE Intermediate"* ]]
   then
