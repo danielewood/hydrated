@@ -77,7 +77,8 @@ echo -e $COLOR_OFF
 if [ $(find "$SCRIPT_DIR/dehydrated/certs/$CERT_CommonName" -mmin -2 -name "fullchain.pem") ]
   then
     #echo 'fullchain.pem < 2 minutes old'
-    openssl pkcs12 -export -out $CERT_PFX_PATH/$CERT_FileName.pfx -inkey $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/privkey.pem -in $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem -name $CERT_FriendlyName -password pass:CERT_Password
+    openssl pkcs12 -export -out $CERT_PFX_PATH/$CERT_FileName.pfx -inkey $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/privkey.pem -in $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem -name $CERT_FriendlyName -password pass:$CERT_Password
+    md5sum $CERT_PFX_PATH/$CERT_FileName.pfx | awk '{print $1}' > $CERT_PFX_PATH/$CERT_FileName.MD5
     echo -e "Exported Windows-compatible PFX certificate to \e[1;32m$CERT_PFX_PATH/$CERT_FileName.pfx\e[0m"
     echo "Certificate Details:"
     CERT_TEXT=$(openssl pkcs12 -info -in $CERT_PFX_PATH/$CERT_FileName.pfx -nokeys -password pass:$CERT_Password)
@@ -93,9 +94,13 @@ if [ $(find "$SCRIPT_DIR/dehydrated/certs/$CERT_CommonName" -mmin -2 -name "full
     echo -e "\e[1;31mWARNING:\e[0m" "$CERT_CommonName/fullchain.pem was not updated, skipping writing new $CERT_FileName.pfx"
 fi
 
+
+
 if [[ "$CERT_TEXT" == *"Fake LE Intermediate"* ]]
   then
     echo " "
     echo -e "\e[1;31mWARNING:\e[0m" "You are using the Let's Encrypt Staging Server and not the Production Server"
+    echo "Run the following command to fix this:"
+    echo "sed -i 's/acme-staging.api/acme-v01.api/g' $SCRIPT_DIR/dehydrated/dehydrated"
 fi
 echo " "
