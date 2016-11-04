@@ -1,3 +1,5 @@
+#Run from Lync/Skype Edge Server:
+
 $CertFilename = "Skype-External.pfx"
 $CertPassword = "SKYPECERTPASSWORD"
 $CertPath = $($env:TEMP)
@@ -96,4 +98,5 @@ Else
 
 # Stop logging
 Stop-Transcript
-& notepad.exe $Logfile
+Write-Output "Logging to $Logfile"
+#& notepad.exe $Logfile
