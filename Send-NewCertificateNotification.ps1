@@ -98,7 +98,8 @@ If ($JSON)
   }
  Else
   {
-  $MessageBody = $MessageBody.Replace("<table>`r`n</table>","<br>More Details: https://www.google.com/transparencyreport/https/ct/#domain=$DomainName&incl_exp=false&incl_sub=true")
+  $MessageBody = $MessageBody.Replace("</head><body>","</head><body><br>More Details: https://www.google.com/transparencyreport/https/ct/#domain=$DomainName&incl_exp=false&incl_sub=true")
+  $MessageBody = $MessageBody.Replace("<table>`r`n</table>","")
   }
 
  $EmailCreds = New-Object System.Management.Automation.PSCredential ($EmailUsername,$EmailPassword)
