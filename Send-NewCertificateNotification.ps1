@@ -61,7 +61,6 @@ If ($EmailPasswordAsSecureString -ne $True)
  }
 
 $JSON = (Invoke-RestMethod -uri "https://certspotter.com/api/v0/certs?domain=$DomainName")
-
 If ($JSON)
  {
  If ($UseUTCTime)
@@ -79,14 +78,17 @@ If ($JSON)
   $TimeZone = ([System.TimeZoneInfo]::Local.DisplayName).substring(0,11)
   }
  
- $JSON | ForEach-Object {$_.not_before = '{0:yyyy-MM-dd\THH:mm:ss.DTGTZ}' -f $JSON.not_before }
- $JSON | ForEach-Object {$_.not_after = '{0:yyyy-MM-dd\THH:mm:ss.DTGTZ}' -f $JSON.not_after }
-   
- $JSON.dns_names = [string]$JSON.dns_names
- $MessageBody = ($JSON | Select type, issuer, not_after, not_before | ConvertTo-Html -As List -Fragment).Replace('</table>','')
+ $JSON | ForEach-Object {$_.not_before = '{0:yyyy-MM-dd\THH:mm:ss.DTGTZ}' -f $_.not_before }
+ $JSON | ForEach-Object {$_.not_after = '{0:yyyy-MM-dd\THH:mm:ss.DTGTZ}' -f $_.not_after }
+ $JSON | ForEach-Object {$_.dns_names = [string]$_.dns_names}
+
+ $MessageBody =@()
+ $JSON | ForEach-Object {
+  $MessageBody = $MessageBody + ($_ | Select type, issuer, not_after, not_before | ConvertTo-Html -As List -Fragment).Replace('</table>','')
+  $MessageBody = $MessageBody + ($_ | Select dns_names | ConvertTo-Html -As List -Fragment -Property dns_names).Replace(' ','<br>').Replace('<table>','')
+  }
  $MessageBody = $MessageBody.Replace(".DTGTZ</td>"," $TimeZone</td>")
- 
- $MessageBody = $MessageBody + ($JSON | Select dns_names | ConvertTo-Html -As List -Fragment -Property dns_names).Replace(' ','<br>').Replace('<table>','')
+ $MessageBody = $MessageBody.Replace(".DTGTZ</td>"," $TimeZone</td>")
  $MessageBody = ConvertTo-Html -head $style -body $MessageBody | Out-String
  
  If ($JSON.issuer -eq "C=US, O=Let's Encrypt, CN=Let's Encrypt Authority X3")
