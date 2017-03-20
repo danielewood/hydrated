@@ -6,6 +6,8 @@ if [ ! "$BASH_VERSION" ] ; then
     exit 1
 fi
 
+
+
 # Colors
 COLOR_RED='\e[1;31m'
 COLOR_GREEN='\e[92m'
@@ -66,6 +68,8 @@ done
 #Remove duplicates + remove CERT_CommonName so it can be added later at the beginning (LE has issues otherwise)
 CERT_SANS=$(echo "$TEMP_SAN" | xargs -n1 | sort -u | xargs | sed "s/$CERT_CommonName//g")
 
+md5sum $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem | awk '{print $1}' > $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem.MD5
+
 echo "Dehydrated:"
 echo -e $COLOR_LTBLUE
 #Lync Cert Common Name + SAN (CN must be in SAN field as well for a valid Lync Cert)
@@ -77,10 +81,18 @@ echo -e $COLOR_OFF
 if [ $(md5sum $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem | awk '{print $1}') != $(cat $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem.MD5) ]
   then
     md5sum $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem | awk '{print $1}' > $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem.MD5
-    echo -e "\e[1;32m$CERT_CommonName/fullchain.pem\e[0m updated, writing new PFX file..."
     openssl pkcs12 -export -out $CERT_PFX_PATH/$CERT_FileName.pfx -inkey $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/privkey.pem -in $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem -name $CERT_FriendlyName -password pass:$CERT_Password
     md5sum $CERT_PFX_PATH/$CERT_FileName.pfx | awk '{print $1}' > $CERT_PFX_PATH/$CERT_FileName.MD5
     echo -e "Exported Windows-compatible PFX certificate to \e[1;32m$CERT_PFX_PATH/$CERT_FileName.pfx\e[0m"
+
+    echo -e "\e[1;32m$CERT_CommonName/fullchain.pem\e[0m updated, writing new PFX file..."
+
+  else
+    echo -e "\e[1;31mWARNING:\e[0m" "$CERT_CommonName/fullchain.pem was not updated, skipping writing new $CERT_FileName.pfx"
+    echo -e "\e[1;31mWARNING:\e[0m" "$CERT_CommonName/fullchain.pem was not updated, skipping writing new $CERT_FileName.pfx"
+
+fi
+
     echo "Certificate Details:"
     CERT_TEXT=$(openssl pkcs12 -info -in $CERT_PFX_PATH/$CERT_FileName.pfx -nokeys -password pass:$CERT_Password)
     echo -e "Certificate Friendly Name: "$COLOR_GREEN$(echo "$CERT_TEXT" | grep "friendlyName:" | awk -F': ' '{print $2}')$COLOR_OFF
@@ -91,9 +103,7 @@ if [ $(md5sum $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem | awk 
     CERT_TEXT=$(openssl x509 -in "$SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem" -text)
     echo -e "$CERT_TEXT" | grep "CN=$CERT_CommonName" -B4 | sed 's/        //g'
     echo -e "$CERT_TEXT"| grep "DNS:$CERT_CommonName" | xargs -n1 | sed 's/,//g' | sed 's/DNS:/    SAN: /g'
-  else
-    echo -e "\e[1;31mWARNING:\e[0m" "$CERT_CommonName/fullchain.pem was not updated, skipping writing new $CERT_FileName.pfx"
-fi
+
 
 if [[ "$CERT_TEXT" == *"Fake LE Intermediate"* ]]
   then
