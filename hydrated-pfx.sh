@@ -78,7 +78,7 @@ $SCRIPT_DIR/dehydrated/dehydrated --challenge $DEHYDRATED_CHALLENGE -k $SCRIPT_D
 echo -e $COLOR_OFF
 
 #Check if fullchain.pem.MD5 matches current md5sum of fullchain.pem so we don't create a new PFX if the PEM was not updated
-if [ $(md5sum $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem | awk '{print $1}') != $(cat $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem.MD5) ]
+if [ $(md5sum $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem | awk '{print $1}') != $(cat $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem.MD5) ] || [ ! -f $CERT_PFX_PATH/$CERT_FileName.pfx ]
   then
     md5sum $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem | awk '{print $1}' > $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem.MD5
     openssl pkcs12 -export -out $CERT_PFX_PATH/$CERT_FileName.pfx -inkey $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/privkey.pem -in $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem -name $CERT_FriendlyName -password pass:$CERT_Password
