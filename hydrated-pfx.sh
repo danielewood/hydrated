@@ -1,11 +1,40 @@
 #!/bin/bash
 
+
 if [ ! "$BASH_VERSION" ] ; then
     echo "Please do not use sh to run this script ($0), just execute it directly" 1>&2
     /bin/echo -e "Alternatively, you may use: '\e[1;31mbash $0\e[0m'" 1>&2
     exit 1
 fi
 
+
+function display_certdetails {
+    echo "Certificate Details:"
+    echo -e "Certificate Friendly Name: "$COLOR_GREEN$(echo "$CERT_DETAILS" | grep "friendlyName:" | awk -F': ' '{print $2}')$COLOR_OFF
+    echo -e "Certificate Thumbprint: "$COLOR_GREEN$(echo "$CERT_DETAILS" | grep "localKeyID:" | awk -F': ' '{print $2}' |  sed 's/ //g')$COLOR_OFF
+    echo -e "$CERT_DETAILS_EXT" | grep "CN=$CERT_CommonName" -B4 | sed 's/        //g'
+    echo -e "$CERT_DETAILS_EXT" | grep "DNS:$CERT_CommonName" | xargs -n1 | sed 's/,//g' | sed 's/DNS:/    SAN: /g'
+
+}
+
+function send_notification {
+    cat << EOF | /usr/sbin/sendmail -t -f $EMAIL_SENDER
+Content-Type:text/html;charset='UTF-8'
+Content-Transfer-Encoding:7bit
+From:$EMAIL_SENDER_DISPLAY_NAME<$EMAIL_SENDER>
+To:<$EMAIL_RECIPIENT>
+Subject: New Certificate: $(echo "$CERT_DETAILS" | grep "friendlyName:" | awk -F': ' '{print $2}')
+<html>
+<p>A new certificate for <b>$CERT_CommonName</b> has been created/renewed.</p>
+Certificate Details:
+<pre><code>Certificate Friendly Name: <strong style="color: green;">$(echo "$CERT_DETAILS" | grep "friendlyName:" | awk -F': ' '{print $2}')</strong>
+Certificate Thumbprint: <strong style="color: green;">$(echo "$CERT_DETAILS" | grep "localKeyID:" | awk -F': ' '{print $2}' |  sed 's/ //g')</strong>
+$(echo "$CERT_DETAILS_EXT" | grep "CN=$CERT_CommonName" -B4 | sed 's/        //g')
+$(echo "$CERT_DETAILS_EXT" | grep "DNS:$CERT_CommonName" | xargs -n1 | sed 's/,//g' | sed 's/DNS:/    SAN: /g')
+</code></pre>
+</html>
+EOF
+}
 
 
 # Colors
@@ -32,6 +61,11 @@ if [ -z "$CERT_FileName" ]
     echo -e "Exiting script..."
     exit 1
 fi
+
+source $SCRIPT_DIR/hydrated-common.conf
+
+
+
 
 
 #exit 1
@@ -68,13 +102,13 @@ done
 #Remove duplicates + remove CERT_CommonName so it can be added later at the beginning (LE has issues otherwise)
 CERT_SANS=$(echo "$TEMP_SAN" | xargs -n1 | sort -u | xargs | sed "s/$CERT_CommonName//g")
 
+
 md5sum $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem | awk '{print $1}' > $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem.MD5
 
 echo "Dehydrated:"
 echo -e $COLOR_LTBLUE
 #Lync Cert Common Name + SAN (CN must be in SAN field as well for a valid Lync Cert)
 $SCRIPT_DIR/dehydrated/dehydrated --challenge $DEHYDRATED_CHALLENGE -k $SCRIPT_DIR/$DEHYDRATED_HOOK -c --domain "$CERT_CommonName $CERT_CommonName $CERT_SANS"
-#$SCRIPT_DIR/dehydrated/dehydrated --challenge dns-01 -k $SCRIPT_DIR/le-godaddy-dns/godaddy.py -c --domain "$CERT_CommonName $CERT_CommonName $CERT_SANS"
 echo -e $COLOR_OFF
 
 #Check if fullchain.pem.MD5 matches current md5sum of fullchain.pem so we don't create a new PFX if the PEM was not updated
@@ -84,25 +118,23 @@ if [ $(md5sum $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem | awk 
     openssl pkcs12 -export -out $CERT_PFX_PATH/$CERT_FileName.pfx -inkey $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/privkey.pem -in $SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem -name $CERT_FriendlyName -password pass:$CERT_Password
     md5sum $CERT_PFX_PATH/$CERT_FileName.pfx | awk '{print $1}' > $CERT_PFX_PATH/$CERT_FileName.MD5
     echo -e "Exported Windows-compatible PFX certificate to \e[1;32m$CERT_PFX_PATH/$CERT_FileName.pfx\e[0m"
-
     echo -e "\e[1;32m$CERT_CommonName/fullchain.pem\e[0m updated, writing new PFX file..."
+    CERT_DETAILS=$(openssl pkcs12 -info -in $CERT_PFX_PATH/$CERT_FileName.pfx -nokeys -password pass:$CERT_Password 2> /dev/null)
+    CERT_DETAILS_EXT=$(openssl x509 -in "$SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem" -text 2> /dev/null)
+    if [ -n $SEND_EMAIL ]
+      then
+        send_notification
+    fi
 
   else
     echo -e "\e[1;31mWARNING:\e[0m" "$CERT_CommonName/fullchain.pem was not updated, skipping writing new $CERT_FileName.pfx"
-    echo -e "\e[1;31mWARNING:\e[0m" "$CERT_CommonName/fullchain.pem was not updated, skipping writing new $CERT_FileName.pfx"
-
 fi
 
-    echo "Certificate Details:"
-    CERT_TEXT=$(openssl pkcs12 -info -in $CERT_PFX_PATH/$CERT_FileName.pfx -nokeys -password pass:$CERT_Password)
-    echo -e "Certificate Friendly Name: "$COLOR_GREEN$(echo "$CERT_TEXT" | grep "friendlyName:" | awk -F': ' '{print $2}')$COLOR_OFF
-    echo -e "Certificate Thumbprint: "$COLOR_GREEN$(echo "$CERT_TEXT" | grep "localKeyID:" | awk -F': ' '{print $2}' |  sed 's/ //g')$COLOR_OFF
-    #Probably not needed:
-      #chown $CURRENT_USER:$CURRENT_USER $CERT_PFX_PATH/$CERT_FileName.pfx
-      #chmod 600 $CERT_PFX_PATH/$CERT_FileName.pfx
-    CERT_TEXT=$(openssl x509 -in "$SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem" -text)
-    echo -e "$CERT_TEXT" | grep "CN=$CERT_CommonName" -B4 | sed 's/        //g'
-    echo -e "$CERT_TEXT"| grep "DNS:$CERT_CommonName" | xargs -n1 | sed 's/,//g' | sed 's/DNS:/    SAN: /g'
+
+CERT_DETAILS=$(openssl pkcs12 -info -in $CERT_PFX_PATH/$CERT_FileName.pfx -nokeys -password pass:$CERT_Password 2> /dev/null)
+CERT_DETAILS_EXT=$(openssl x509 -in "$SCRIPT_DIR/dehydrated/certs/$CERT_CommonName/fullchain.pem" -text 2> /dev/null)
+display_certdetails
+
 
 
 if [[ "$CERT_TEXT" == *"Fake LE Intermediate"* ]]
