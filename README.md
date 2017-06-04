@@ -1,5 +1,26 @@
 # Hydrated
-Hydrated was originally written to solve a problem, Lync/Skype4B Edge requires a costly SAN certificate.
+Hydrated was originally written to solve a problem, Lync/Skype4B Edge requires a costly SAN certificate. This script adds a layer to `dehydrated` to make adding multiple sets of SSL certificate in an automated manner easier to manage.
+
+## Installation
+
+```
+cd ~
+git clone https://github.com/danielewood/hydrated/
+cd hydrated
+git clone https://github.com/lukas2511/dehydrated
+cd dehydrated
+mkdir hooks
+git clone https://github.com/kappataumu/letsencrypt-cloudflare-hook hooks/cloudflare
+```
+
+If you are using Python 3 on CentOS 7:
+```
+sudo yum install epel-release
+sudo yum install python34-setuptools
+sudo easy_install-3.4 pip
+sudo pip install -r hooks/cloudflare/requirements.txt
+```
+
 
 ## hydrated-pfx.sh
 - Hydrated generates said certificate using Let's Encrypt with DNS Hooks in a format that can then be imported to Lync.
@@ -25,20 +46,7 @@ Hydrated was originally written to solve a problem, Lync/Skype4B Edge requires a
 
 This is a hook for the [Let's Encrypt](https://letsencrypt.org/) ACME client [dehydrated](https://github.com/lukas2511/dehydrated) (previously known as `letsencrypt.sh`) that allows you to use [CloudFlare](https://www.cloudflare.com/) DNS records to respond to `dns-01` challenges. Requires Python and your CloudFlare account e-mail and API key being in the environment.
 
-## Installation
 
-```
-$ cd ~
-$ git clone https://github.com/lukas2511/dehydrated
-$ cd dehydrated
-$ mkdir hooks
-$ git clone https://github.com/kappataumu/letsencrypt-cloudflare-hook hooks/cloudflare
-```
-
-If you are using Python 3:
-```
-$ pip install -r hooks/cloudflare/requirements.txt
-```
 
 Otherwise, if you are using Python 2 (make sure to also check the [urllib3 documentation](http://urllib3.readthedocs.org/en/latest/security.html#installing-urllib3-with-sni-support-and-certificates) for possible caveats):
 
